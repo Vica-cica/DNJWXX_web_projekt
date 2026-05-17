@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: library_postgres_db
+    environment:
+      POSTGRES_USER: library_user
+      POSTGRES_PASSWORD: library_password
+      POSTGRES_DB: library_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_library_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_library_data:

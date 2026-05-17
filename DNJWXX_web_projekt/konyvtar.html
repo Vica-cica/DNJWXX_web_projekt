@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vuka Könyvtára</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Online Könyvtár és Kölcsönző</h1>
+            
+            <div class="auth-bar">
+                {% if user %}
+                    <p>Üdvözlünk, <strong>{{ user.username }}</strong>! 
+                    {% if user.is_admin %}<span class="admin-badge">(Adminisztrátor)</span>{% endif %}
+                    | <a href="/auth/logout" class="logout-link">Kijelentkezés</a></p>
+                {% else %}
+                    <p class="warning-text">A könyvek kölcsönzéséhez be kell jelentkezned!</p>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="message-container">
+            {% if request.query_params.get('error') == 'foglalt_nev' %}
+                <div class="alert-box error-box">Ez a felhasználónév már foglalt! Kérjük, válassz másikat!</div>
+            {% endif %}
+            
+            {% if request.query_params.get('error') == 'hibas_adatok' %}
+                <div class="alert-box error-box">Hibás felhasználónév vagy jelszó!</div>
+            {% endif %}
+
+            {% if request.query_params.get('success') == 'sikeres_regisztracio' %}
+                <div class="alert-box success-box">Sikeres regisztráció! Most már bejelentkezhetsz.</div>
+            {% endif %}
+        </div>
+
+        {% if not user %}
+        <section class="auth-forms">
+            <div class="auth-box">
+                <h3>Bejelentkezés</h3>
+                <form action="/auth/login" method="POST" class="add-form">
+                    <input type="text" name="username" placeholder="Felhasználónév" required class="input-field">
+                    <input type="password" name="password" placeholder="Jelszó" required class="input-field">
+                    <button type="submit" class="btn btn-blue">Belépés</button> 
+                </form>
+            </div>
+            <div class="auth-box">
+                <h3>Regisztráció</h3>
+                <form action="/auth/register" method="POST" class="add-form">
+                    <input type="text" name="username" placeholder="Új felhasználónév" required class="input-field">
+                    <input type="password" name="password" placeholder="Új jelszó" required class="input-field">
+                    <button type="submit" class="btn btn-blue">Regisztráció</button> 
+                </form>
+            </div>
+        </section>
+        <hr class="separator">
+        {% endif %}
+
+        <main class="book-grid">
+            {% for book in books %}
+            <div class="book-card">
+                <img src="{{ book.imageUrl }}" alt="{{ book.title }} borítója" class="book-image">
+                <h2>{{ book.title }}</h2>
+                <h3>Szerző: {{ book.author }}</h3>
+                
+                <p class="status">
+                    Elérhetőség: 
+                    {% if book.available_copies > 0 %}
+                        <span class="available-text">{{ book.available_copies }} / {{ book.total_copies }} db szabad</span>
+                    {% else %}
+                        <span class="borrowed-text">Mind kikölcsönözve (0 db elérhető)</span>
+                    {% endif %}
+                </p>
+
+                <div class="action-buttons">
+                    {% if user %}
+                        
+                        {% if book.available_copies > 0 %}
+                            <form action="/books/{{ book.id }}/borrow" method="POST">
+                                <button type="submit" class="btn btn-green">Kölcsönzés</button> 
+                            </form>
+                        {% else %}
+                            <button class="btn disabled-btn" disabled>Elfogyott</button>
+                        {% endif %}
+
+                        {% if book.available_copies < book.total_copies %}
+                            <form action="/books/{{ book.id }}/return" method="POST">
+                                <button type="submit" class="btn btn-orange">Visszahozatal</button> 
+                            </form>
+                        {% endif %}
+
+                        {% if user.is_admin %}
+                        <form action="/books/{{ book.id }}/delete" method="POST">
+                            <button type="submit" class="btn btn-red">Törlés</button> 
+                        </form>
+                        {% endif %}
+
+                    {% else %}
+                        <button class="btn disabled-btn" disabled>Kölcsönzéshez lépj be</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </main>
+
+        {% if user and user.is_admin %}
+        <hr class="separator">
+        <section class="admin-panel">
+            <h2>Új könyv hozzáadása (Admin felület)</h2>
+            <form action="/books/add" method="POST" class="add-form">
+                <input type="text" name="title" placeholder="Könyv címe" required class="input-field">
+                <input type="text" name="author" placeholder="Szerző" required class="input-field">
+                <input type="url" name="imageUrl" placeholder="Borítókép URL-je (opcionális)" class="input-field">
+                <input type="number" name="copies" placeholder="Példányszám (pl: 5)" min="1" value="1" required class="input-field">
+                <button type="submit" class="btn btn-green submit-btn">Könyv mentése</button> 
+            </form>
+        </section>
+        {% endif %}
+    </div>
+
+</body>
+</html>
