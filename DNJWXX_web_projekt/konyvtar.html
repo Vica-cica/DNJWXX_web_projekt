@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vuka Könyvtára</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
 </head>
 <body>
 
@@ -35,27 +35,63 @@
             {% if request.query_params.get('success') == 'sikeres_regisztracio' %}
                 <div class="alert-box success-box">Sikeres regisztráció! Most már bejelentkezhetsz.</div>
             {% endif %}
+            {% if request.query_params.get('error') == 'konyv_kint_van' %}
+                <div class="alert-box error-box" style="background-color: #fde8e8; color: #9b1c1c; border: 1px solid #f8b4b4; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center;">
+                    Nem törölheted ezt a könyvet, mert jelenleg ki van kölcsönözve! Előbb vissza kell hozatni.
+                </div>
+            {% endif %}
         </div>
 
         {% if not user %}
-        <section class="auth-forms">
-            <div class="auth-box">
+        <section class="auth-forms" style="width: 100%; max-width: 400px; margin: 0 auto;">
+            
+            <div class="auth-box" id="login-box">
                 <h3>Bejelentkezés</h3>
                 <form action="/auth/login" method="POST" class="add-form">
                     <input type="text" name="username" placeholder="Felhasználónév" required class="input-field">
                     <input type="password" name="password" placeholder="Jelszó" required class="input-field">
                     <button type="submit" class="btn btn-blue">Belépés</button> 
                 </form>
+                <p style="margin-top: 15px; font-size: 0.9em; color: #555;">
+                    Még nincs fiókod? <a href="#" onclick="switchAuth('register')" style="font-weight: bold; color: #007bff; text-decoration: none;">Regisztrálj itt!</a>
+                </p>
             </div>
-            <div class="auth-box">
+
+            <div class="auth-box" id="register-box" style="display: none;">
                 <h3>Regisztráció</h3>
                 <form action="/auth/register" method="POST" class="add-form">
                     <input type="text" name="username" placeholder="Új felhasználónév" required class="input-field">
                     <input type="password" name="password" placeholder="Új jelszó" required class="input-field">
-                    <button type="submit" class="btn btn-blue">Regisztráció</button> 
+                    <button type="submit" class="btn btn-blue">Regisztráció és Belépés</button> 
                 </form>
+                <p style="margin-top: 15px; font-size: 0.9em; color: #555;">
+                    Már van fiókod? <a href="#" onclick="switchAuth('login')" style="font-weight: bold; color: #007bff; text-decoration: none;">Jelentkezz be!</a>
+                </p>
             </div>
+
         </section>
+
+        <script>
+            function switchAuth(type) {
+                const loginBox = document.getElementById('login-box');
+                const registerBox = document.getElementById('register-box');
+                
+                if (type === 'register') {
+                    loginBox.style.display = 'none';
+                    registerBox.style.display = 'block';
+                } else {
+                    loginBox.style.display = 'block';
+                    registerBox.style.display = 'none';
+                }
+            }
+
+            // Ha regisztrációs hiba miatt dob vissza a szerver, automatikusan a regisztrációs dobozt mutassuk
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('error') === 'foglalt_nev') {
+                switchAuth('register');
+            }
+        </script>
+        
         <hr class="separator">
         {% endif %}
 
@@ -83,7 +119,9 @@
                                 <button type="submit" class="btn btn-green">Kölcsönzés</button> 
                             </form>
                         {% else %}
-                            <button class="btn disabled-btn" disabled>Elfogyott</button>
+                            <div class="out-of-stock-text" style="color: #dc3545; font-weight: bold; padding: 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px;">
+                                Jelenleg nem kölcsönözhető
+                            </div>
                         {% endif %}
 
                         {% if book.available_copies < book.total_copies %}
@@ -93,9 +131,19 @@
                         {% endif %}
 
                         {% if user.is_admin %}
-                        <form action="/books/{{ book.id }}/delete" method="POST">
-                            <button type="submit" class="btn btn-red">Törlés</button> 
-                        </form>
+                        <div class="admin-actions-box" style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; width: 100%;">
+                            
+                            <form action="/books/{{ book.id }}/update_copies" method="POST" style="margin-bottom: 8px; display: flex; gap: 5px; align-items: center; justify-content: center;">
+                                <label style="font-size: 0.85em; color: #555;">Összes db:</label>
+                                <input type="number" name="total_copies" value="{{ book.total_copies }}" min="1" required 
+                                       style="width: 50px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                                <button type="submit" class="btn btn-blue" style="padding: 4px 8px; font-size: 0.85em; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Módosít</button>
+                            </form>
+
+                            <form action="/books/{{ book.id }}/delete" method="POST" onsubmit="return confirm('Biztosan törölni akarod ezt a könyvet?');">
+                                <button type="submit" class="btn btn-red" style="width: 100%; padding: 5px; font-size: 0.85em;">Törlés</button> 
+                            </form>
+                        </div>
                         {% endif %}
 
                     {% else %}
@@ -106,18 +154,69 @@
             {% endfor %}
         </main>
 
-        {% if user and user.is_admin %}
-        <hr class="separator">
-        <section class="admin-panel">
-            <h2>Új könyv hozzáadása (Admin felület)</h2>
-            <form action="/books/add" method="POST" class="add-form">
-                <input type="text" name="title" placeholder="Könyv címe" required class="input-field">
-                <input type="text" name="author" placeholder="Szerző" required class="input-field">
-                <input type="url" name="imageUrl" placeholder="Borítókép URL-je (opcionális)" class="input-field">
-                <input type="number" name="copies" placeholder="Példányszám (pl: 5)" min="1" value="1" required class="input-field">
-                <button type="submit" class="btn btn-green submit-btn">Könyv mentése</button> 
-            </form>
-        </section>
+            {% if user %}
+            <hr class="separator" style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+            
+            {% if user.is_admin %}
+                <section class="admin-borrows-panel" style="background: #fff5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #dc3545; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h3 style="color: #dc3545; margin-top: 0; margin-bottom: 15px;">Rendszer szintű kölcsönzések (Adminisztrátori nézet)</h3>
+                    
+                    {% if all_borrows %}
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; background: white; border-radius: 6px; overflow: hidden;">
+                            <thead>
+                                <tr style="background: #fee2e2; color: #991b1b;">
+                                    <th style="padding: 10px; border-bottom: 2px solid #fca5a5;">Olvasó neve</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #fca5a5;">Könyv címe</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #fca5a5;">Szerző</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #fca5a5;">Kölcsönzés ideje</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for borrow in all_borrows %}
+                                <tr style="border-bottom: 1px solid #fee2e2;">
+                                    <td style="padding: 10px;"><strong>{{ borrow.user.username }}</strong></td>
+                                    <td style="padding: 10px;">{{ borrow.book.title }}</td>
+                                    <td style="padding: 10px; color: #555;">{{ borrow.book.author }}</td>
+                                    <td style="padding: 10px; color: #666; font-size: 0.9em;">{{ borrow.borrowed_at }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p style="color: #7f1d1d; margin: 0;">Jelenleg senki sem kölcsönzött ki semmit a könyvtárból.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-panel" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e3e6f0; margin-bottom: 20px;">
+                    <h2 style="color: #4e73df; margin-top: 0; margin-bottom: 15px;">Új könyv hozzáadása (Admin felület)</h2>
+                    <form action="/books/add" method="POST" class="add-form" style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="text" name="title" placeholder="Könyv címe" required class="input-field" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="text" name="author" placeholder="Szerző" required class="input-field" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="url" name="imageUrl" placeholder="Borítókép URL-je (opcionális)" class="input-field" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="number" name="copies" placeholder="Példányszám (pl: 5)" min="1" value="1" required class="input-field" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <button type="submit" class="btn btn-green submit-btn" style="padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Könyv mentése</button> 
+                    </form>
+                </section>
+
+            {% else %}
+                {% if user_borrows %}
+                <section class="user-borrows-panel" style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #007bff;">
+                    <h3 style="margin-top: 0;">Nálad lévő könyvek:</h3>
+                    <ul style="list-style-type: square; padding-left: 20px; margin: 0;">
+                        {% for borrow in user_borrows %}
+                            <li style="margin-bottom: 8px;">
+                                <strong>{{ borrow.book.title }}</strong> – Szerző: {{ borrow.book.author }} 
+                                <span style="color: #666; font-size: 0.9em;">(Kölcsönözve: {{ borrow.borrowed_at }})</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% else %}
+                <section class="user-borrows-panel" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="color: #555; margin: 0;">Jelenleg nincs nálad kikölcsönzött könyv.</p>
+                </section>
+                {% endif %}
+            {% endif %}
         {% endif %}
     </div>
 

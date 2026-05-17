@@ -164,3 +164,28 @@ h3 {
     text-decoration: underline;
     font-weight: bold;
 }
+
+/* Új gomb színek az adminisztrációnak és a visszahozatalnak */
+.btn-blue {
+    background-color: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
+}
+.btn-blue:hover {
+    background-color: #0056b3 !important;
+}
+
+.btn-red {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: #dc3545 !important;
+}
+.btn-red:hover {
+    background-color: #bd2130 !important;
+}
+
+/* Táblázat reszponzivitás, hogy ne lógjon ki a képernyőről */
+.admin-borrows-panel table {
+    width: 100%;
+    margin-top: 10px;
+}
